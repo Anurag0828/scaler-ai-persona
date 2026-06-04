@@ -20,14 +20,15 @@ async def handle_vapi_webhook(payload: dict) -> dict:
         name = function_call.get("name")
         parameters = function_call.get("parameters", {})
     elif message_type == "tool-calls":
-        tool_calls = message.get("toolWithToolCallList", [])
+        tool_calls = message.get("toolCallList", [])
         if tool_calls:
-            tool_call = tool_calls[0].get("toolCall", {})
+            tool_call = tool_calls[0]
             call_id = tool_call.get("id")
             func = tool_call.get("function", {})
             name = func.get("name")
             args = func.get("arguments", "{}")
             if isinstance(args, str):
+                import json
                 try:
                     parameters = json.loads(args)
                 except:

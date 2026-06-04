@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: scaler-persona-backend
+    env: docker
+    region: oregon
+    plan: free
+    dockerContext: backend
+    dockerfilePath: backend/Dockerfile
+    envVars:
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_INDEX_NAME
+        value: scaler-persona
+      - key: CAL_API_KEY
+        sync: false
+      - key: VAPI_WEBHOOK_SECRET
+        sync: false
+      - key: PYTHONUNBUFFERED
+        value: "true"

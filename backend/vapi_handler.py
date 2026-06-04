@@ -10,14 +10,33 @@ async def handle_vapi_webhook(payload: dict) -> dict:
     message = payload.get("message", {})
     message_type = message.get("type")
     
-    if message_type != "function-call":
-        # We only care about function calls right now
+    call_id = None
+    name = None
+    parameters = {}
+    
+    if message_type == "function-call":
+        function_call = message.get("functionCall", {})
+        call_id = function_call.get("id")
+        name = function_call.get("name")
+        parameters = function_call.get("parameters", {})
+    elif message_type == "tool-calls":
+        tool_calls = message.get("toolWithToolCallList", [])
+        if tool_calls:
+            tool_call = tool_calls[0].get("toolCall", {})
+            call_id = tool_call.get("id")
+            func = tool_call.get("function", {})
+            name = func.get("name")
+            args = func.get("arguments", "{}")
+            if isinstance(args, str):
+                try:
+                    parameters = json.loads(args)
+                except:
+                    parameters = {}
+            else:
+                parameters = args
+                
+    if not call_id or not name:
         return {}
-        
-    function_call = message.get("functionCall", {})
-    call_id = function_call.get("id")
-    name = function_call.get("name")
-    parameters = function_call.get("parameters", {})
     
     print(f"Vapi requested tool: {name} with args: {parameters}")
     

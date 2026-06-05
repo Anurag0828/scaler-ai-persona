@@ -8,14 +8,19 @@ interface Message {
   content: string;
 }
 
-export default function ChatWindow() {
+interface ChatWindowProps {
+  quickActions?: string[];
+}
+
+export default function ChatWindow({ quickActions = [] }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: "Hi! I'm Anurag's AI representative. I can answer questions about his background, projects, or help you book an interview with him. What would you like to know?"
+    content: "Hi! I'm Anurag's AI representative. I can answer questions about his background, projects, and skills — or help you book an interview with him. What would you like to know?"
   }]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -28,8 +33,10 @@ export default function ChatWindow() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
+    await sendMessage(input.trim());
+  };
 
-    const userMsg = input.trim();
+  const sendMessage = async (userMsg: string) => {
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setIsLoading(true);
@@ -50,7 +57,6 @@ export default function ChatWindow() {
       const decoder = new TextDecoder();
       let assistantMsg = '';
 
-      // Add a placeholder message for the assistant
       setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
       while (true) {
@@ -92,74 +98,272 @@ export default function ChatWindow() {
     }
   };
 
+  const handleQuickAction = (action: string) => {
+    if (isLoading) return;
+    sendMessage(action);
+  };
+
+  const showQuickActions = messages.length <= 1 && !isLoading;
+
   return (
-    <div className="flex flex-col h-[600px] w-full max-w-2xl mx-auto bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
-      {/* Header */}
-      <div className="bg-gray-800 px-6 py-4 border-b border-gray-700 flex items-center justify-between">
+    <div
+      id="chat-container"
+      className="flex flex-col w-full overflow-hidden"
+      style={{
+        height: '560px',
+        background: '#FFFFFF',
+        border: '1px solid #E5E7EB',
+        borderRadius: '16px',
+        boxShadow: '0 8px 40px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04)',
+      }}
+    >
+      {/* ===== HEADER ===== */}
+      <div
+        id="chat-header"
+        className="flex items-center justify-between px-5 py-3.5"
+        style={{
+          background: 'linear-gradient(135deg, #0D1B3E 0%, #1A3A6E 100%)',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+        }}
+      >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+          {/* Avatar */}
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm"
+            style={{
+              background: 'linear-gradient(135deg, #1A73E8, #00C6FF)',
+              boxShadow: '0 2px 8px rgba(26, 115, 232, 0.4)',
+            }}
+          >
             AS
           </div>
           <div>
-            <h2 className="text-gray-100 font-semibold text-lg">Anurag's AI Agent</h2>
-            <p className="text-gray-400 text-xs flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
-              Online and ready to chat
-            </p>
+            <h2 className="text-white font-semibold text-sm">Anurag&apos;s AI Agent</h2>
+            <div className="flex items-center gap-1.5">
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ background: '#34D399', boxShadow: '0 0 4px rgba(52, 211, 153, 0.6)' }}
+              />
+              <span className="text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>Online</span>
+            </div>
           </div>
+        </div>
+
+        {/* RAG Badge */}
+        <div
+          className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
+          style={{
+            background: 'rgba(255,255,255,0.1)',
+            color: 'rgba(255,255,255,0.65)',
+            border: '1px solid rgba(255,255,255,0.1)',
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.3-4.3"/>
+          </svg>
+          RAG-Grounded
         </div>
       </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-gray-900 to-black scrollbar-thin scrollbar-thumb-gray-700">
-        {messages.map((msg, idx) => (
-          <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div 
-              className={`max-w-[80%] rounded-2xl px-5 py-3 ${
-                msg.role === 'user' 
-                  ? 'bg-blue-600 text-white rounded-br-none shadow-blue-900/50 shadow-lg' 
-                  : 'bg-gray-800 text-gray-200 rounded-bl-none shadow-md border border-gray-700'
+      {/* ===== MESSAGES AREA ===== */}
+      <div
+        id="messages-area"
+        className="flex-1 overflow-y-auto px-5 py-4"
+        style={{ background: '#FAFBFC' }}
+      >
+        <div className="space-y-4">
+          {messages.map((msg, idx) => (
+            <div
+              key={idx}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} ${
+                idx === messages.length - 1 ? (msg.role === 'user' ? 'animate-slide-right' : 'animate-slide-left') : ''
               }`}
             >
-              {msg.role === 'user' ? (
-                <p className="whitespace-pre-wrap">{msg.content}</p>
-              ) : (
-                <div className="prose prose-invert prose-sm max-w-none">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+              {/* Assistant avatar */}
+              {msg.role === 'assistant' && (
+                <div
+                  className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-xs mr-2.5 mt-0.5"
+                  style={{
+                    background: 'linear-gradient(135deg, #1A73E8, #00C6FF)',
+                  }}
+                >
+                  AI
                 </div>
               )}
+
+              <div
+                className="max-w-[78%] px-4 py-3"
+                style={
+                  msg.role === 'user'
+                    ? {
+                        background: '#1A73E8',
+                        color: '#FFFFFF',
+                        borderRadius: '16px 16px 4px 16px',
+                        boxShadow: '0 2px 8px rgba(26, 115, 232, 0.2)',
+                      }
+                    : {
+                        background: '#FFFFFF',
+                        color: '#1A1A2E',
+                        borderRadius: '16px 16px 16px 4px',
+                        border: '1px solid #E5E7EB',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                      }
+                }
+              >
+                {msg.role === 'user' ? (
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+                ) : (
+                  <div className="chat-prose">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-800 rounded-2xl rounded-bl-none px-5 py-4 border border-gray-700 flex gap-2 items-center shadow-md">
-              <div className="w-2 h-2 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-              <div className="w-2 h-2 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-              <div className="w-2 h-2 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          ))}
+
+          {/* Typing Indicator */}
+          {isLoading && messages[messages.length - 1]?.content === '' && (
+            <div className="flex justify-start animate-slide-left">
+              <div
+                className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-xs mr-2.5"
+                style={{ background: 'linear-gradient(135deg, #1A73E8, #00C6FF)' }}
+              >
+                AI
+              </div>
+              <div
+                className="px-4 py-3.5 flex gap-1.5 items-center"
+                style={{
+                  background: '#FFFFFF',
+                  borderRadius: '16px 16px 16px 4px',
+                  border: '1px solid #E5E7EB',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                }}
+              >
+                {[0, 1, 2].map(i => (
+                  <div
+                    key={i}
+                    className="w-2 h-2 rounded-full"
+                    style={{
+                      background: '#1A73E8',
+                      animation: `pulse-dot 1.4s infinite ease-in-out`,
+                      animationDelay: `${i * 0.16}s`,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* ===== QUICK ACTIONS ===== */}
+        {showQuickActions && quickActions.length > 0 && (
+          <div className="mt-5 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+            <p className="text-xs font-medium mb-2.5" style={{ color: '#9CA3AF', letterSpacing: '0.04em' }}>
+              Try asking:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {quickActions.map((action) => (
+                <button
+                  key={action}
+                  onClick={() => handleQuickAction(action)}
+                  className="px-3.5 py-2 text-xs font-medium transition-all duration-200 cursor-pointer"
+                  style={{
+                    background: '#FFFFFF',
+                    color: '#374151',
+                    border: '1px solid #E5E7EB',
+                    borderRadius: '999px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#1A73E8';
+                    e.currentTarget.style.color = '#1A73E8';
+                    e.currentTarget.style.background = 'rgba(26, 115, 232, 0.04)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(26, 115, 232, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#E5E7EB';
+                    e.currentTarget.style.color = '#374151';
+                    e.currentTarget.style.background = '#FFFFFF';
+                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.03)';
+                  }}
+                >
+                  {action}
+                </button>
+              ))}
             </div>
           </div>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="p-4 bg-gray-900 border-t border-gray-800">
-        <form onSubmit={handleSubmit} className="flex gap-2">
+      {/* ===== INPUT AREA ===== */}
+      <div
+        id="chat-input"
+        className="px-4 py-3"
+        style={{
+          background: '#FFFFFF',
+          borderTop: '1px solid #E5E7EB',
+        }}
+      >
+        <form onSubmit={handleSubmit} className="flex gap-2.5 items-center">
           <input
+            ref={inputRef}
             type="text"
+            id="message-input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about Anurag's experience..."
-            className="flex-1 bg-gray-800 border border-gray-700 text-gray-100 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder-gray-500"
+            placeholder="Ask about Anurag's experience, skills, or book an interview..."
+            className="flex-1 text-sm transition-all duration-200 outline-none"
+            style={{
+              background: '#F5F7FA',
+              border: '1px solid #E5E7EB',
+              color: '#1A1A2E',
+              borderRadius: '12px',
+              padding: '10px 16px',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = '#1A73E8';
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26, 115, 232, 0.1)';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = '#E5E7EB';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
             disabled={isLoading}
           />
           <button
             type="submit"
+            id="send-button"
             disabled={!input.trim() || isLoading}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 text-white rounded-xl px-6 py-3 font-medium transition-colors shadow-lg shadow-blue-900/20"
+            className="flex items-center justify-center transition-all duration-200 cursor-pointer"
+            style={{
+              background: !input.trim() || isLoading ? '#D1D5DB' : '#1A73E8',
+              color: '#FFFFFF',
+              borderRadius: '12px',
+              padding: '10px 18px',
+              border: 'none',
+              boxShadow: !input.trim() || isLoading ? 'none' : '0 2px 8px rgba(26, 115, 232, 0.3)',
+              opacity: !input.trim() || isLoading ? 0.6 : 1,
+            }}
+            onMouseEnter={(e) => {
+              if (input.trim() && !isLoading) {
+                e.currentTarget.style.background = '#1557B0';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(26, 115, 232, 0.4)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (input.trim() && !isLoading) {
+                e.currentTarget.style.background = '#1A73E8';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(26, 115, 232, 0.3)';
+              }
+            }}
           >
-            Send
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
           </button>
         </form>
       </div>

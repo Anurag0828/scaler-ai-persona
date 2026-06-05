@@ -16,11 +16,15 @@ async def get_available_slots(date: str, event_type_id: str = None) -> list:
         logger.error("Cal.com API key is not configured.")
         return []
     
-    # Use the configured event type ID, not a hardcoded dummy
-    event_id = event_type_id or config.CAL_EVENT_TYPE_ID
-    if not event_id:
+    # Use the configured event type ID, and extract only the digits in case a URL was pasted
+    raw_event_id = event_type_id or config.CAL_EVENT_TYPE_ID
+    if not raw_event_id:
         logger.error("CAL_EVENT_TYPE_ID is not configured. Cannot fetch slots.")
         return []
+    
+    import re
+    match = re.search(r'(\d+)', str(raw_event_id))
+    event_id = match.group(1) if match else str(raw_event_id)
     
     headers = {
         "Authorization": f"Bearer {config.CAL_API_KEY}",
@@ -80,9 +84,13 @@ async def book_meeting(name: str, email: str, start_time: str, event_type_id: st
     if not config.CAL_API_KEY:
         return {"success": False, "error": "Cal.com API key is not configured."}
     
-    event_id = event_type_id or config.CAL_EVENT_TYPE_ID
-    if not event_id:
+    raw_event_id = event_type_id or config.CAL_EVENT_TYPE_ID
+    if not raw_event_id:
         return {"success": False, "error": "CAL_EVENT_TYPE_ID is not configured."}
+    
+    import re
+    match = re.search(r'(\d+)', str(raw_event_id))
+    event_id = match.group(1) if match else str(raw_event_id)
     
     headers = {
         "Authorization": f"Bearer {config.CAL_API_KEY}",

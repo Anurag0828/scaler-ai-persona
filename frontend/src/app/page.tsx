@@ -83,9 +83,8 @@ export default function Home() {
               AUTONOMOUS AI AGENT
             </p>
 
-            {/* Headline */}
             <h1
-              className="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight mb-5 tracking-tight"
+              className="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight mb-8 tracking-tight"
               style={{ color: '#0D1B3E' }}
             >
               Meet{' '}
@@ -93,13 +92,7 @@ export default function Home() {
               Persona
             </h1>
 
-            {/* Subtitle */}
-            <p
-              className="text-base sm:text-lg max-w-2xl mx-auto leading-relaxed mb-8"
-              style={{ color: '#6B7280' }}
-            >
-              RAG-grounded agent that answers questions about Anurag&apos;s engineering background, projects, and skills — or autonomously books an interview on his calendar.
-            </p>
+
           </div>
 
           {/* Tech Stack Badges */}

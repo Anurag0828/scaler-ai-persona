@@ -77,9 +77,54 @@ async def keep_alive():
     """Endpoint to prevent Render cold starts. Hit this every 10 min."""
     return {"status": "warm", "message": "Backend is alive"}
 
+CALENDAR_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "check_availability",
+            "description": "Check available calendar slots for a specific date in YYYY-MM-DD format.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "description": "The date to check in YYYY-MM-DD format."
+                    }
+                },
+                "required": ["date"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "book_meeting",
+            "description": "Book a meeting on the calendar.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The name of the attendee."
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "The email of the attendee."
+                    },
+                    "start_time": {
+                        "type": "string",
+                        "description": "The start time of the meeting in ISO 8601 format (e.g. 2026-06-09T13:00:00Z)."
+                    }
+                },
+                "required": ["name", "email", "start_time"]
+            }
+        }
+    }
+]
+
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
-    """RAG-powered chat endpoint with streaming SSE"""
+    """RAG-powered chat endpoint with streaming SSE and tool-calling capabilities for Cal.com booking"""
     try:
         logger.info(f"[CHAT] Received message: {request.message[:100]}")
         
@@ -90,7 +135,12 @@ async def chat_endpoint(request: ChatRequest):
         rag_prompt = get_rag_prompt(context, request.message)
         
         # 3. Build messages array
-        messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
+        from datetime import datetime
+        current_date_str = datetime.utcnow().strftime("%Y-%m-%d")
+        system_prompt = CHAT_SYSTEM_PROMPT.replace("{{currentDateTime}}", current_date_str)
+        system_prompt += f"\nToday is {current_date_str}."
+        
+        messages = [{"role": "system", "content": system_prompt}]
         
         # Add history (last 6 messages)
         history = request.conversation_history[-6:] if len(request.conversation_history) > 6 else request.conversation_history
@@ -100,24 +150,104 @@ async def chat_endpoint(request: ChatRequest):
         # Add current augmented message
         messages.append({"role": "user", "content": rag_prompt})
         
-        # 4. Generate streaming response
-        response = await generate_chat_response(messages, stream=True)
+        # 4. First call (non-streaming) to check if the model wants to call tools
+        from .rag_engine import client
         
-        async def event_generator():
-            try:
-                async for chunk in response:
-                    if chunk.choices and len(chunk.choices) > 0:
-                        delta = chunk.choices[0].delta.content
-                        if delta:
-                            yield {"data": json.dumps({"token": delta})}
-                # Send done signal
-                yield {"data": json.dumps({"done": True})}
-            except Exception as e:
-                logger.error(f"Streaming error: {e}", exc_info=True)
-                yield {"data": json.dumps({"error": str(e)})}
+        logger.info("[CHAT] Sending first LLM call with tools...")
+        response = await client.chat.completions.create(
+            model=config.NVIDIA_LLM_MODEL,
+            messages=messages,
+            temperature=0.7,
+            max_tokens=1024,
+            tools=CALENDAR_TOOLS,
+            tool_choice="auto"
+        )
+        
+        message_obj = response.choices[0].message
+        tool_calls = message_obj.tool_calls
+        
+        # If the model wants to call tools
+        if tool_calls:
+            logger.info(f"[CHAT] LLM requested {len(tool_calls)} tool call(s)")
+            messages.append(message_obj)
+            
+            for tool_call in tool_calls:
+                tool_name = tool_call.function.name
+                tool_args = json.loads(tool_call.function.arguments)
+                tool_id = tool_call.id
                 
-        return EventSourceResponse(event_generator())
-        
+                logger.info(f"[CHAT] Running tool: {tool_name} with args: {tool_args}")
+                
+                tool_result = ""
+                try:
+                    if tool_name == "check_availability":
+                        date = tool_args.get("date")
+                        slots = await get_available_slots(date)
+                        if slots:
+                            tool_result = f"Available slots on {date}: {json.dumps(slots)}"
+                        else:
+                            tool_result = f"No available slots found on {date}."
+                    elif tool_name == "book_meeting":
+                        name = tool_args.get("name")
+                        email = tool_args.get("email")
+                        start_time = tool_args.get("start_time")
+                        res = await book_meeting(name, email, start_time)
+                        if res.get("success"):
+                            tool_result = f"Successfully booked the meeting for {start_time}."
+                        else:
+                            tool_result = f"Failed to book the meeting: {res.get('error')}"
+                    else:
+                        tool_result = f"Unknown tool: {tool_name}"
+                except Exception as e:
+                    logger.error(f"[CHAT] Error running tool {tool_name}: {e}", exc_info=True)
+                    tool_result = f"Error executing tool: {str(e)}"
+                
+                logger.info(f"[CHAT] Tool {tool_name} result: {tool_result}")
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_id,
+                    "name": tool_name,
+                    "content": tool_result
+                })
+            
+            # Now call again with streaming to get the final answer
+            logger.info("[CHAT] Sending second LLM call (streaming)...")
+            final_response = await client.chat.completions.create(
+                model=config.NVIDIA_LLM_MODEL,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1024,
+                stream=True
+            )
+            
+            async def event_generator():
+                try:
+                    async for chunk in final_response:
+                        if chunk.choices and len(chunk.choices) > 0:
+                            delta = chunk.choices[0].delta.content
+                            if delta:
+                                yield {"data": json.dumps({"token": delta})}
+                    yield {"data": json.dumps({"done": True})}
+                except Exception as e:
+                    logger.error(f"Streaming error: {e}", exc_info=True)
+                    yield {"data": json.dumps({"error": str(e)})}
+                    
+            return EventSourceResponse(event_generator())
+            
+        else:
+            # If no tool calls, stream the text we already got
+            logger.info("[CHAT] No tools requested. Streaming text response...")
+            content = message_obj.content
+            
+            async def event_generator_simple():
+                if content:
+                    chunk_size = 8
+                    for i in range(0, len(content), chunk_size):
+                        yield {"data": json.dumps({"token": content[i:i+chunk_size]})}
+                yield {"data": json.dumps({"done": True})}
+                
+            return EventSourceResponse(event_generator_simple())
+            
     except Exception as e:
         logger.error(f"Chat error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

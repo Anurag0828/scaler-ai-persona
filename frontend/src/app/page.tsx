@@ -136,34 +136,7 @@ export default function Home() {
         <ChatWindow quickActions={quickActions} />
       </div>
 
-      {/* ===== FOOTER ===== */}
-      <footer
-        className="w-full py-5 border-t"
-        style={{ borderColor: '#E5E7EB', background: 'rgba(245, 247, 250, 0.5)' }}
-      >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-xs" style={{ color: '#9CA3AF' }}>
-            Built for the Scaler AI Engineer Screening Assignment &bull; 2026
-          </p>
-          <div className="flex items-center gap-4">
-            <a
-              href="https://github.com/Anurag0828/scaler-ai-persona"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-medium transition-colors duration-200"
-              style={{ color: '#6B7280' }}
-              onMouseEnter={(e) => e.currentTarget.style.color = '#1A73E8'}
-              onMouseLeave={(e) => e.currentTarget.style.color = '#6B7280'}
-            >
-              GitHub ↗
-            </a>
-            <span className="text-xs" style={{ color: '#D1D5DB' }}>|</span>
-            <span className="text-xs" style={{ color: '#9CA3AF' }}>
-              By Anurag Sajwan
-            </span>
-          </div>
-        </div>
-      </footer>
+
     </main>
   );
 }

@@ -1,47 +1,75 @@
 import httpx
-from datetime import datetime
+import logging
+from datetime import datetime, timedelta
 from .config import config
+
+logger = logging.getLogger(__name__)
 
 CAL_API_URL = "https://api.cal.com/v2"
 
 async def get_available_slots(date: str, event_type_id: str = None) -> list:
     """
     Fetch available slots from Cal.com for a given date (YYYY-MM-DD).
-    Returns a list of slots or an error string.
+    Returns a list of slots or an empty list on error.
     """
     if not config.CAL_API_KEY:
-        return "Error: Cal.com API key is not configured."
-        
-    # Default to 30 min meeting if not provided
-    event_id = event_type_id or "10" # Using 10 as dummy/fallback
+        logger.error("Cal.com API key is not configured.")
+        return []
+    
+    # Use the configured event type ID, not a hardcoded dummy
+    event_id = event_type_id or config.CAL_EVENT_TYPE_ID
+    if not event_id:
+        logger.error("CAL_EVENT_TYPE_ID is not configured. Cannot fetch slots.")
+        return []
     
     headers = {
         "Authorization": f"Bearer {config.CAL_API_KEY}",
-        "cal-api-version": "2024-09-04"
+        "cal-api-version": "2024-06-14"
     }
     
-    # We fetch slots for the given day and the next day to ensure we have options
     try:
-        # Simple date calculation just for string passing, in real app use datetime logic
-        # For simplicity, we just pass start and end as the same date for now
-        end_date = date 
+        # Calculate end date as the next day to get all slots for the requested date
+        start_date = date
+        try:
+            dt = datetime.strptime(date, "%Y-%m-%d")
+            end_dt = dt + timedelta(days=1)
+            end_date = end_dt.strftime("%Y-%m-%d")
+        except ValueError:
+            logger.warning(f"Invalid date format: {date}, using same day as end")
+            end_date = date
         
-        url = f"{CAL_API_URL}/slots?eventTypeId={event_id}&start={date}&end={end_date}&timeZone=Asia/Kolkata"
+        url = f"{CAL_API_URL}/slots?eventTypeId={event_id}&startTime={start_date}&endTime={end_date}&timeZone=Asia/Kolkata"
         
-        async with httpx.AsyncClient() as client:
+        logger.info(f"[CAL] Fetching slots: {url}")
+        
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(url, headers=headers)
+            
+            logger.info(f"[CAL] Response status: {response.status_code}")
             
             if response.status_code == 200:
                 data = response.json()
-                # Slots usually come nested in data structure depending on API v2 response
+                logger.info(f"[CAL] Response data: {str(data)[:500]}")
+                
+                # Cal.com v2 returns slots nested under "data"
                 if "data" in data:
-                    return data["data"]
+                    slots_data = data["data"]
+                    # Slots may be grouped by date
+                    if isinstance(slots_data, dict):
+                        all_slots = []
+                        for day, day_slots in slots_data.items():
+                            if isinstance(day_slots, list):
+                                all_slots.extend(day_slots)
+                        return all_slots
+                    elif isinstance(slots_data, list):
+                        return slots_data
+                    return slots_data
                 return data
             else:
-                print(f"Cal.com API error: {response.status_code} - {response.text}")
+                logger.error(f"[CAL] API error: {response.status_code} - {response.text}")
                 return []
     except Exception as e:
-        print(f"Error fetching slots: {e}")
+        logger.error(f"[CAL] Error fetching slots: {e}", exc_info=True)
         return []
 
 async def book_meeting(name: str, email: str, start_time: str, event_type_id: str = None) -> dict:
@@ -51,12 +79,14 @@ async def book_meeting(name: str, email: str, start_time: str, event_type_id: st
     """
     if not config.CAL_API_KEY:
         return {"success": False, "error": "Cal.com API key is not configured."}
-        
-    event_id = event_type_id or 10 # Int for body
+    
+    event_id = event_type_id or config.CAL_EVENT_TYPE_ID
+    if not event_id:
+        return {"success": False, "error": "CAL_EVENT_TYPE_ID is not configured."}
     
     headers = {
         "Authorization": f"Bearer {config.CAL_API_KEY}",
-        "cal-api-version": "2024-09-04",
+        "cal-api-version": "2024-06-14",
         "Content-Type": "application/json"
     }
     
@@ -73,9 +103,13 @@ async def book_meeting(name: str, email: str, start_time: str, event_type_id: st
         }
     }
     
+    logger.info(f"[CAL] Booking meeting: {json.dumps(payload)}")
+    
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.post(f"{CAL_API_URL}/bookings", headers=headers, json=payload)
+            
+            logger.info(f"[CAL] Booking response: {response.status_code} - {response.text[:500]}")
             
             if response.status_code == 201 or response.status_code == 200:
                 data = response.json()
@@ -83,4 +117,8 @@ async def book_meeting(name: str, email: str, start_time: str, event_type_id: st
             else:
                 return {"success": False, "error": response.text}
     except Exception as e:
+        logger.error(f"[CAL] Booking error: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
+
+# Need json import for booking payload logging
+import json

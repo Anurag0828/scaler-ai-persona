@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,12 +13,24 @@ from .rag_engine import search_knowledge, generate_chat_response
 from .calendar_service import get_available_slots, book_meeting
 from .vapi_handler import handle_vapi_webhook
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s"
+)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="Scaler AI Persona Backend")
 
 # Allow CORS for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict to Vercel domain
+    allow_origins=[
+        "http://localhost:3000",
+        "https://scaler-ai-persona-pi.vercel.app",
+        "https://*.vercel.app",
+        "*"  # Keep wildcard as fallback during development
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,6 +54,7 @@ def verify_vapi_secret(request: Request):
     if config.VAPI_WEBHOOK_SECRET:
         secret = request.headers.get("x-vapi-secret")
         if secret != config.VAPI_WEBHOOK_SECRET:
+            logger.warning(f"[AUTH] Vapi secret mismatch. Expected: {config.VAPI_WEBHOOK_SECRET[:4]}..., Got: {secret}")
             raise HTTPException(status_code=401, detail="Invalid webhook secret")
     return True
 
@@ -51,14 +65,22 @@ async def health_check():
         "services": {
             "pinecone": "configured" if config.PINECONE_API_KEY else "missing",
             "nvidia_nim": "configured" if config.NVIDIA_API_KEY else "missing",
-            "cal_com": "configured" if config.CAL_API_KEY else "missing"
+            "cal_com": "configured" if config.CAL_API_KEY else "missing",
+            "cal_event_type": "configured" if config.CAL_EVENT_TYPE_ID else "missing"
         }
     }
+
+@app.get("/keep-alive")
+async def keep_alive():
+    """Endpoint to prevent Render cold starts. Hit this every 10 min."""
+    return {"status": "warm", "message": "Backend is alive"}
 
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     """RAG-powered chat endpoint with streaming SSE"""
     try:
+        logger.info(f"[CHAT] Received message: {request.message[:100]}")
+        
         # 1. Search knowledge base
         context = await search_knowledge(request.message)
         
@@ -89,13 +111,13 @@ async def chat_endpoint(request: ChatRequest):
                 # Send done signal
                 yield {"data": json.dumps({"done": True})}
             except Exception as e:
-                print(f"Streaming error: {e}")
+                logger.error(f"Streaming error: {e}", exc_info=True)
                 yield {"data": json.dumps({"error": str(e)})}
                 
         return EventSourceResponse(event_generator())
         
     except Exception as e:
-        print(f"Chat error: {e}")
+        logger.error(f"Chat error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/availability")
@@ -117,13 +139,15 @@ async def vapi_webhook(request: Request, _ = Depends(verify_vapi_secret)):
     """Handle Vapi tool calls"""
     try:
         payload = await request.json()
+        logger.info(f"[WEBHOOK] Received Vapi webhook call")
         result = await handle_vapi_webhook(payload)
+        logger.info(f"[WEBHOOK] Returning result: {json.dumps(result)[:500]}")
         return JSONResponse(content=result)
     except Exception as e:
-        print(f"Webhook error: {e}")
+        logger.error(f"Webhook error: {e}", exc_info=True)
         # Vapi expects a 200 OK even if we have an internal error, with a formatted response
         return JSONResponse(content={
             "results": [
-                {"result": "An internal error occurred."}
+                {"result": f"An internal error occurred: {str(e)}"}
             ]
         })

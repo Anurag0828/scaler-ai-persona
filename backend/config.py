@@ -12,6 +12,7 @@ class Config:
     PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "scaler-persona")
     
     CAL_API_KEY = os.getenv("CAL_API_KEY")
+    CAL_EVENT_TYPE_ID = os.getenv("CAL_EVENT_TYPE_ID", "")
     
     VAPI_WEBHOOK_SECRET = os.getenv("VAPI_WEBHOOK_SECRET", "")
     

@@ -9,12 +9,18 @@ services:
     envVars:
       - key: NVIDIA_API_KEY
         sync: false
+      - key: NVIDIA_LLM_MODEL
+        value: meta/llama-3.1-70b-instruct
+      - key: NVIDIA_EMBED_MODEL
+        value: nvidia/nv-embedqa-e5-v5
       - key: PINECONE_API_KEY
         sync: false
       - key: PINECONE_INDEX_NAME
         value: scaler-persona
       - key: CAL_API_KEY
         sync: false
+      - key: CAL_EVENT_TYPE_ID
+        value: "5906289"
       - key: VAPI_WEBHOOK_SECRET
         sync: false
       - key: PYTHONUNBUFFERED

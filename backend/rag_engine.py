@@ -1,8 +1,11 @@
 import httpx
 import json
+import logging
 from pinecone import Pinecone
 from openai import AsyncOpenAI
 from .config import config
+
+logger = logging.getLogger(__name__)
 
 # Initialize Pinecone
 pc = Pinecone(api_key=config.PINECONE_API_KEY)
@@ -13,6 +16,8 @@ client = AsyncOpenAI(
     base_url="https://integrate.api.nvidia.com/v1",
     api_key=config.NVIDIA_API_KEY
 )
+
+RELEVANCE_THRESHOLD = 0.35  # Minimum cosine similarity to include a chunk
 
 async def get_embedding(text: str) -> list:
     """Get embedding vector for the search query using NVIDIA NIM"""
@@ -30,18 +35,20 @@ async def get_embedding(text: str) -> list:
         "encoding_format": "float"
     }
     
-    async with httpx.AsyncClient() as http_client:
+    async with httpx.AsyncClient(timeout=30.0) as http_client:
         response = await http_client.post(url, headers=headers, json=payload)
         
         if response.status_code == 200:
             data = response.json()
             return data["data"][0]["embedding"]
         else:
-            print(f"Error getting embedding: {response.text}")
+            logger.error(f"Error getting embedding: {response.status_code} - {response.text}")
             return []
 
 async def search_knowledge(query: str, top_k: int = 5) -> str:
     """Search Pinecone for relevant knowledge chunks based on query"""
+    logger.info(f"[RAG] Searching for: '{query}' (top_k={top_k})")
+    
     embedding = await get_embedding(query)
     
     if not embedding:
@@ -55,29 +62,62 @@ async def search_knowledge(query: str, top_k: int = 5) -> str:
             include_metadata=True
         )
         
-        # Format results
+        # Format results with relevance filtering
         context_chunks = []
         for match in results["matches"]:
+            score = match.get("score", 0)
             source = match["metadata"].get("source", "unknown")
             text = match["metadata"].get("text", "")
-            context_chunks.append(f"[Source: {source}]\n{text}\n")
+            section = match["metadata"].get("section", "")
             
-        return "\n".join(context_chunks)
+            logger.info(f"[RAG] Chunk: score={score:.3f}, source={source}, section={section}, preview={text[:80]}...")
+            
+            # Filter out low-relevance chunks
+            if score < RELEVANCE_THRESHOLD:
+                logger.info(f"[RAG] Skipping chunk (score {score:.3f} < threshold {RELEVANCE_THRESHOLD})")
+                continue
+            
+            section_label = f", Section: {section}" if section else ""
+            context_chunks.append(f"[Source: {source}{section_label}, Relevance: {score:.2f}]\n{text}\n")
+        
+        if not context_chunks:
+            logger.warning(f"[RAG] No chunks passed relevance threshold for query: '{query}'")
+            return "No highly relevant information found in the knowledge base for this specific query."
+            
+        result = "\n".join(context_chunks)
+        logger.info(f"[RAG] Returning {len(context_chunks)} relevant chunks ({len(result)} chars)")
+        return result
+        
     except Exception as e:
-        print(f"Error searching Pinecone: {e}")
+        logger.error(f"Error searching Pinecone: {e}", exc_info=True)
         return "Error accessing knowledge base."
 
-async def generate_chat_response(messages: list, stream: bool = False):
+async def generate_chat_response(messages: list, stream: bool = False, max_tokens: int = 500):
     """Generate response using NVIDIA NIM Llama 3.1 70B"""
     try:
         response = await client.chat.completions.create(
             model=config.NVIDIA_LLM_MODEL,
             messages=messages,
             temperature=0.7,
-            max_tokens=500,
+            max_tokens=max_tokens,
             stream=stream
         )
         return response
     except Exception as e:
-        print(f"Error calling LLM: {e}")
+        logger.error(f"Error calling LLM: {e}", exc_info=True)
+        raise e
+
+async def generate_voice_response(messages: list) -> str:
+    """Generate a non-streaming response optimized for voice (shorter, faster)"""
+    try:
+        response = await client.chat.completions.create(
+            model=config.NVIDIA_LLM_MODEL,
+            messages=messages,
+            temperature=0.7,
+            max_tokens=300,  # Shorter for voice
+            stream=False
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        logger.error(f"Error calling LLM for voice: {e}", exc_info=True)
         raise e

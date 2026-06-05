@@ -87,6 +87,67 @@ payload = {
                 "role": "system",
                 "content": SYSTEM_PROMPT
             }
+        ],
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "search_knowledge",
+                    "description": "Search Anurag's knowledge base to find relevant information about his background, skills, and projects. Use this BEFORE answering factual questions.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "The search query to look up in Anurag's knowledge base."
+                            }
+                        },
+                        "required": ["query"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "check_availability",
+                    "description": "Check Anurag's real calendar availability for a specific date. Returns available time slots.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "date": {
+                                "type": "string",
+                                "description": "The date to check availability for, in YYYY-MM-DD format. Example: '2026-06-05'"
+                            }
+                        },
+                        "required": ["date"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "book_meeting",
+                    "description": "Book a confirmed interview meeting on Anurag's calendar. Use this AFTER the caller has chosen a time.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Full name of the person booking"
+                            },
+                            "email": {
+                                "type": "string",
+                                "description": "Email address of the person booking"
+                            },
+                            "start_time": {
+                                "type": "string",
+                                "description": "Meeting start time in ISO 8601 format. Example: '2026-06-05T14:00:00+05:30'"
+                            }
+                        },
+                        "required": ["name", "email", "start_time"]
+                    }
+                }
+            }
         ]
     }
 }

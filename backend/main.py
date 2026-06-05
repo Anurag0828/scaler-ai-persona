@@ -150,12 +150,54 @@ async def chat_endpoint(request: ChatRequest):
         # Add current augmented message
         messages.append({"role": "user", "content": rag_prompt})
         
-        # 4. First call (non-streaming) to check if the model wants to call tools
+        # Check if the query is related to scheduling or booking
+        booking_keywords = ["book", "schedule", "appoint", "calendar", "slot", "interview", "call", "meet", "availab"]
+        is_booking_context = False
+        
+        if any(kw in request.message.lower() for kw in booking_keywords):
+            is_booking_context = True
+            
+        if not is_booking_context and request.conversation_history:
+            last_assistant_msg = None
+            for msg in reversed(request.conversation_history):
+                if msg.role == "assistant":
+                    last_assistant_msg = msg.content.lower()
+                    break
+            if last_assistant_msg:
+                context_keywords = ["date", "time", "slot", "email", "name", "calendar", "availab", "book"]
+                if any(kw in last_assistant_msg for kw in context_keywords):
+                    is_booking_context = True
+                    
         from .rag_engine import client
         
-        logger.info("[CHAT] Sending first LLM call with tools...")
+        if not is_booking_context:
+            logger.info("[CHAT] General query detected. Streaming response directly...")
+            response = await client.chat.completions.create(
+                model="meta/llama-3.1-8b-instruct",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1024,
+                stream=True
+            )
+            
+            async def event_generator_direct():
+                try:
+                    async for chunk in response:
+                        if chunk.choices and len(chunk.choices) > 0:
+                            delta = chunk.choices[0].delta.content
+                            if delta:
+                                yield {"data": json.dumps({"token": delta})}
+                    yield {"data": json.dumps({"done": True})}
+                except Exception as e:
+                    logger.error(f"Streaming error: {e}", exc_info=True)
+                    yield {"data": json.dumps({"error": str(e)})}
+                    
+            return EventSourceResponse(event_generator_direct())
+        
+        # 4. Booking path: First call (non-streaming) to check if the model wants to call tools
+        logger.info("[CHAT] Booking context detected. Sending first LLM call with tools...")
         response = await client.chat.completions.create(
-            model="meta/llama-3.1-70b-instruct",
+            model="meta/llama-3.1-8b-instruct",
             messages=messages,
             temperature=0.7,
             max_tokens=1024,
@@ -213,7 +255,7 @@ async def chat_endpoint(request: ChatRequest):
             # Now call again with streaming to get the final answer
             logger.info("[CHAT] Sending second LLM call (streaming)...")
             final_response = await client.chat.completions.create(
-                model="meta/llama-3.1-70b-instruct",
+                model="meta/llama-3.1-8b-instruct",
                 messages=messages,
                 temperature=0.7,
                 max_tokens=1024,

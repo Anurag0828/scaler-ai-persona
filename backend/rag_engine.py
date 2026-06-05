@@ -17,6 +17,9 @@ client = AsyncOpenAI(
     api_key=config.NVIDIA_API_KEY
 )
 
+# Global reusable HTTP client to leverage keep-alive connections
+httpx_client = httpx.AsyncClient(timeout=30.0)
+
 RELEVANCE_THRESHOLD = 0.20  # Lowered from 0.35 to catch conversational Vapi queries
 
 async def get_embedding(text: str) -> list:
@@ -35,15 +38,17 @@ async def get_embedding(text: str) -> list:
         "encoding_format": "float"
     }
     
-    async with httpx.AsyncClient(timeout=30.0) as http_client:
-        response = await http_client.post(url, headers=headers, json=payload)
-        
+    try:
+        response = await httpx_client.post(url, headers=headers, json=payload)
         if response.status_code == 200:
             data = response.json()
             return data["data"][0]["embedding"]
         else:
             logger.error(f"Error getting embedding: {response.status_code} - {response.text}")
             return []
+    except Exception as e:
+        logger.error(f"HTTP error getting embedding: {e}", exc_info=True)
+        return []
 
 async def search_knowledge(query: str, top_k: int = 5) -> str:
     """Search Pinecone for relevant knowledge chunks based on query"""

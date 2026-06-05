@@ -113,7 +113,7 @@ CALENDAR_TOOLS = [
                     },
                     "start_time": {
                         "type": "string",
-                        "description": "The start time of the meeting in ISO 8601 format (e.g. 2026-06-09T13:00:00Z)."
+                        "description": "The exact start time string of the slot as returned by check_availability (e.g. '2026-06-08T15:00:00.000+05:30'). Do NOT modify the timezone offset or convert to UTC/Z."
                     }
                 },
                 "required": ["name", "email", "start_time"]

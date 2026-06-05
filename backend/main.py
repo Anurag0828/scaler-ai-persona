@@ -155,7 +155,7 @@ async def chat_endpoint(request: ChatRequest):
         
         logger.info("[CHAT] Sending first LLM call with tools...")
         response = await client.chat.completions.create(
-            model=config.NVIDIA_LLM_MODEL,
+            model="meta/llama-3.1-70b-instruct",
             messages=messages,
             temperature=0.7,
             max_tokens=1024,
@@ -213,7 +213,7 @@ async def chat_endpoint(request: ChatRequest):
             # Now call again with streaming to get the final answer
             logger.info("[CHAT] Sending second LLM call (streaming)...")
             final_response = await client.chat.completions.create(
-                model=config.NVIDIA_LLM_MODEL,
+                model="meta/llama-3.1-70b-instruct",
                 messages=messages,
                 temperature=0.7,
                 max_tokens=1024,

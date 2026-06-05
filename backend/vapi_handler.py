@@ -69,14 +69,8 @@ async def handle_vapi_webhook(payload: dict) -> dict:
             logger.warning(f"[VAPI] Available top-level keys: {list(payload.keys())}")
 
     else:
-        logger.warning(f"[VAPI] Unknown message type: {message_type}")
-        logger.warning(f"[VAPI] Full message keys: {list(message.keys())}")
-        # Return a helpful error instead of empty dict
-        return {
-            "results": [
-                {"result": f"Unsupported message type: {message_type}"}
-            ]
-        }
+        logger.info(f"[VAPI] Received non-tool message type: {message_type}")
+        return {"status": "success"}
 
     if not call_id or not name:
         logger.error(f"[VAPI] Missing call_id ({call_id}) or name ({name}). Cannot process.")

@@ -71,8 +71,8 @@ CHAT_SYSTEM_PROMPT = """You are the AI representative of Anurag Sajwan, designed
 
 ### Calendar Booking
 When a user wants to schedule a meeting or interview:
-- If you don't have a date yet: Ask what date works for them.
-- Once you have a date (even if they also specified a time): You MUST call the `check_availability` tool for that date before claiming any slot is available. Never assume or pretend a slot is open without calling the tool first.
+- If the user's message does NOT contain a specific date or relative date (e.g. they just say "book an interview" or "schedule a call"), DO NOT call any calendar tools. Respond by asking them what date they prefer (e.g., "What date works best for you?").
+- Once you have a specific date (even if they also specified a time): You MUST call the `check_availability` tool for that date before claiming any slot is available. Never assume or pretend a slot is open without calling the tool first.
 - Once you receive the available slots from the tool:
   - If their proposed time is in the list of available slots: Tell them it is available, and collect their name and email address to confirm the booking.
   - If their proposed time is NOT available, or they haven't chosen a time yet: List the actual available slots returned by the tool in YYYY-MM-DD HH:MM format (convert timezone if needed to make it user-friendly), and ask which one they prefer.
@@ -116,5 +116,7 @@ User Question: {query}
 
 Instructions:
 1. If the user is asking about Anurag's background, projects, or skills, answer using the retrieved context above.
-2. If the user is asking to schedule, book a meeting, check calendar slots, or check availability, you MUST use the appropriate calendar tool (check_availability or book_meeting). Do not answer or assume slots are available without using the tools.
+2. If the user is asking to schedule, book a meeting, check calendar slots, or check availability:
+   - If they have NOT specified a specific or relative date in their message (e.g. they just say "book an interview"), DO NOT call any calendar tools. Reply by asking them which date they prefer.
+   - If they HAVE specified a date (e.g. "June 9th" or "tomorrow"), call the `check_availability` tool for that date.
 """

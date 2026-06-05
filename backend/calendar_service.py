@@ -28,7 +28,7 @@ async def get_available_slots(date: str, event_type_id: str = None) -> list:
     
     headers = {
         "Authorization": f"Bearer {config.CAL_API_KEY}",
-        "cal-api-version": "2024-06-14"
+        "cal-api-version": "2024-09-04"
     }
     
     try:
@@ -42,7 +42,7 @@ async def get_available_slots(date: str, event_type_id: str = None) -> list:
             logger.warning(f"Invalid date format: {date}, using same day as end")
             end_date = date
         
-        url = f"{CAL_API_URL}/slots?eventTypeId={event_id}&startTime={start_date}&endTime={end_date}&timeZone=Asia/Kolkata"
+        url = f"{CAL_API_URL}/slots?eventTypeId={event_id}&start={start_date}&end={end_date}&timeZone=Asia/Kolkata"
         
         logger.info(f"[CAL] Fetching slots: {url}")
         
@@ -94,7 +94,7 @@ async def book_meeting(name: str, email: str, start_time: str, event_type_id: st
     
     headers = {
         "Authorization": f"Bearer {config.CAL_API_KEY}",
-        "cal-api-version": "2024-06-14",
+        "cal-api-version": "2024-09-04",
         "Content-Type": "application/json"
     }
     

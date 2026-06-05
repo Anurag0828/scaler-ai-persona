@@ -10,7 +10,7 @@ services:
       - key: NVIDIA_API_KEY
         sync: false
       - key: NVIDIA_LLM_MODEL
-        value: moonshotai/kimi-k2.6
+        value: meta/llama-3.1-8b-instruct
       - key: NVIDIA_EMBED_MODEL
         value: nvidia/nv-embedqa-e5-v5
       - key: PINECONE_API_KEY

@@ -7,7 +7,7 @@ This repository contains the complete implementation of an **Autonomous AI Perso
 ## 🌟 Live Demos & Deliverables
 
 *   **Chat Interface:** [https://scaler-ai-persona-pi.vercel.app](https://scaler-ai-persona-pi.vercel.app)
-*   **Voice Agent:** Call **+1 (XXX) XXX-XXXX** *(Replace with your Vapi phone number)*
+*   **Voice Agent:** Call **+1 (239) 663-4264**
 *   **Evaluation Report:** [eval/EVAL_REPORT.md](eval/EVAL_REPORT.md) (Achieved 95% Retrieval Accuracy & < 3s TTFT)
 *   **Walkthrough Video:** *(Insert Loom Link Here)*
 

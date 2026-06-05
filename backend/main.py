@@ -257,9 +257,27 @@ async def chat_endpoint(request: ChatRequest):
                                 if msg.role == "user" and email_pattern.search(msg.content):
                                     has_user_email = True
                                     break
+                                    
+                        has_presented_slots = False
+                        if request.conversation_history:
+                            for msg in request.conversation_history:
+                                if msg.role == "assistant":
+                                    content = msg.content.lower()
+                                    if "am" in content or "pm" in content or ":" in content or "slots" in content:
+                                        has_presented_slots = True
+                                        break
+                                        
+                        user_specifies_slot = False
+                        user_msg_lower = request.message.lower()
+                        if any(kw in user_msg_lower for kw in ["am", "pm", ":"]):
+                            user_specifies_slot = True
+                            
                         if not has_user_email:
                             logger.warning("[CHAT] book_meeting called but no email found in user messages. Rejecting.")
                             tool_result = "Error: Cannot book meeting. The user has not provided their email address in the conversation. Ask the user for their name and email address before booking."
+                        elif not has_presented_slots and not user_specifies_slot:
+                            logger.warning("[CHAT] book_meeting called but no slot check/selection was made. Rejecting.")
+                            tool_result = "Error: Cannot book meeting yet. The user has not chosen or selected a slot, and you have not checked calendar availability. Please call check_availability for their preferred date first, present 2-3 available options, and ask them to select one."
                         else:
                             name = tool_args.get("name")
                             email = tool_args.get("email")

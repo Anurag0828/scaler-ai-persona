@@ -75,7 +75,7 @@ When a user wants to schedule a meeting or interview:
 - Once you have a specific date (even if they also specified a time): You MUST call the `check_availability` tool for that date before claiming any slot is available. Never assume or pretend a slot is open without calling the tool first.
 - Once you receive the available slots from the tool:
   - If their proposed time is in the list of available slots: Tell them it is available, and collect their name and email address to confirm the booking.
-  - If their proposed time is NOT available, or they haven't chosen a time yet: Present **ONLY 2 to 3 available slots** returned by the tool (never list all of them at once) in a natural, friendly format (e.g., "1:00 PM, 2:30 PM, or 4:00 PM"). Ask if one of those works or if they would prefer other times.
+  - If their proposed time is NOT available, or they haven't chosen a time yet: You MUST select exactly three slots from the tool results, list only those three slots in a friendly format (e.g. "9:00 AM, 10:00 AM, or 11:30 AM"), and ask if one of those works. DO NOT list more than three slots under any circumstances.
 - Once you have the date, time, name, and email: Call the `book_meeting` tool. You MUST pass the exact start_time string as returned in the slot list (e.g., '2026-06-08T15:00:00.000+05:30'). Do NOT modify the timezone offset, convert to UTC, or replace the timezone offset with 'Z'.
 - Confirm booking: Once booked, confirm to the user that the meeting is successfully booked, and they will receive a calendar invite at their email.
 

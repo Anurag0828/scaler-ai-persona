@@ -128,28 +128,6 @@ async def chat_endpoint(request: ChatRequest):
     try:
         logger.info(f"[CHAT] Received message: {request.message[:100]}")
         
-        # 1. Search knowledge base
-        context = await search_knowledge(request.message)
-        
-        # 2. Build prompt
-        rag_prompt = get_rag_prompt(context, request.message)
-        
-        # 3. Build messages array
-        from datetime import datetime
-        current_date_str = datetime.utcnow().strftime("%Y-%m-%d")
-        system_prompt = CHAT_SYSTEM_PROMPT.replace("{{currentDateTime}}", current_date_str)
-        system_prompt += f"\nToday is {current_date_str}."
-        
-        messages = [{"role": "system", "content": system_prompt}]
-        
-        # Add history (last 6 messages)
-        history = request.conversation_history[-6:] if len(request.conversation_history) > 6 else request.conversation_history
-        for msg in history:
-            messages.append({"role": msg.role, "content": msg.content})
-            
-        # Add current augmented message
-        messages.append({"role": "user", "content": rag_prompt})
-        
         # Check if the query is related to scheduling or booking
         booking_keywords = ["book", "schedule", "appoint", "calendar", "slot", "interview", "call", "meet", "availab"]
         is_booking_context = False
@@ -168,10 +146,37 @@ async def chat_endpoint(request: ChatRequest):
                 if any(kw in last_assistant_msg for kw in context_keywords):
                     is_booking_context = True
                     
+        # RAG Override: if user explicitly asks a general background/projects question during booking
+        rag_override_keywords = ["what", "how", "why", "who", "tell", "show", "experience", "skill", "project", "resume", "work", "job", "background", "education", "cynoteck", "financial"]
+        if is_booking_context and any(kw in request.message.lower() for kw in rag_override_keywords):
+            is_booking_context = False
+            
+        # Build messages array
+        from datetime import datetime
+        current_date_str = datetime.utcnow().strftime("%Y-%m-%d")
+        system_prompt = CHAT_SYSTEM_PROMPT.replace("{{currentDateTime}}", current_date_str)
+        system_prompt += f"\nToday is {current_date_str}."
+        
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        # Add history (last 6 messages)
+        history = request.conversation_history[-6:] if len(request.conversation_history) > 6 else request.conversation_history
+        for msg in history:
+            messages.append({"role": msg.role, "content": msg.content})
+            
+        if is_booking_context:
+            logger.info("[CHAT] Booking context detected. Skipping RAG search.")
+            messages.append({"role": "user", "content": request.message})
+        else:
+            logger.info("[CHAT] General context detected. Running RAG search.")
+            context = await search_knowledge(request.message)
+            rag_prompt = get_rag_prompt(context, request.message)
+            messages.append({"role": "user", "content": rag_prompt})
+            
         from .rag_engine import client
         
         if not is_booking_context:
-            logger.info("[CHAT] General query detected. Streaming response directly...")
+            logger.info("[CHAT] Streaming general query response directly...")
             response = await client.chat.completions.create(
                 model="meta/llama-3.1-8b-instruct",
                 messages=messages,
@@ -226,6 +231,18 @@ async def chat_endpoint(request: ChatRequest):
                         date = tool_args.get("date")
                         slots = await get_available_slots(date)
                         if slots:
+                            has_proposed_time = False
+                            time_keywords = ["am", "pm", ":", "o'clock", "noon", "morning", "afternoon", "evening"]
+                            if any(kw in request.message.lower() for kw in time_keywords):
+                                has_proposed_time = True
+                            if not has_proposed_time and request.conversation_history:
+                                for msg in request.conversation_history:
+                                    if msg.role == "user" and any(kw in msg.content.lower() for kw in time_keywords):
+                                        has_proposed_time = True
+                                        break
+                            if not has_proposed_time:
+                                logger.info("[CHAT] No specific time proposed. Limiting to top 3 slots.")
+                                slots = slots[:3]
                             tool_result = f"Available slots on {date}: {json.dumps(slots)}"
                         else:
                             tool_result = f"No available slots found on {date}."

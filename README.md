@@ -36,7 +36,7 @@ flowchart TD
     end
 
     subgraph Intelligence [Intelligence & Data Layer]
-        NIM_CHAT[🧠 NVIDIA NIM\n moonshotai/kimi-k2.6]
+        NIM_CHAT[🧠 NVIDIA NIM\n meta/llama-3.1-8b-instruct]
         NIM_EMBED[🔢 NVIDIA NIM\n nv-embedqa-e5-v5]
         PINECONE[(🔍 Pinecone\n Vector Database)]
         CAL_API[📅 Cal.com\n API v2]
@@ -75,7 +75,7 @@ Create a `.env` file in the root directory based on the following template:
 ```env
 # NVIDIA NIM
 NVIDIA_API_KEY=your_key
-NVIDIA_LLM_MODEL=meta/llama-3.1-70b-instruct
+NVIDIA_LLM_MODEL=meta/llama-3.1-8b-instruct
 NVIDIA_EMBED_MODEL=nvidia/nv-embedqa-e5-v5
 
 # Pinecone

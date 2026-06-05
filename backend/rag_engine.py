@@ -17,7 +17,7 @@ client = AsyncOpenAI(
     api_key=config.NVIDIA_API_KEY
 )
 
-RELEVANCE_THRESHOLD = 0.35  # Minimum cosine similarity to include a chunk
+RELEVANCE_THRESHOLD = 0.20  # Lowered from 0.35 to catch conversational Vapi queries
 
 async def get_embedding(text: str) -> list:
     """Get embedding vector for the search query using NVIDIA NIM"""

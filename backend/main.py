@@ -247,14 +247,28 @@ async def chat_endpoint(request: ChatRequest):
                         else:
                             tool_result = f"No available slots found on {date}."
                     elif tool_name == "book_meeting":
-                        name = tool_args.get("name")
-                        email = tool_args.get("email")
-                        start_time = tool_args.get("start_time")
-                        res = await book_meeting(name, email, start_time)
-                        if res.get("success"):
-                            tool_result = f"Successfully booked the meeting for {start_time}."
+                        import re
+                        email_pattern = re.compile(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}')
+                        has_user_email = False
+                        if email_pattern.search(request.message):
+                            has_user_email = True
+                        if not has_user_email and request.conversation_history:
+                            for msg in request.conversation_history:
+                                if msg.role == "user" and email_pattern.search(msg.content):
+                                    has_user_email = True
+                                    break
+                        if not has_user_email:
+                            logger.warning("[CHAT] book_meeting called but no email found in user messages. Rejecting.")
+                            tool_result = "Error: Cannot book meeting. The user has not provided their email address in the conversation. Ask the user for their name and email address before booking."
                         else:
-                            tool_result = f"Failed to book the meeting: {res.get('error')}"
+                            name = tool_args.get("name")
+                            email = tool_args.get("email")
+                            start_time = tool_args.get("start_time")
+                            res = await book_meeting(name, email, start_time)
+                            if res.get("success"):
+                                tool_result = f"Successfully booked the meeting for {start_time}."
+                            else:
+                                tool_result = f"Failed to book the meeting: {res.get('error')}"
                     else:
                         tool_result = f"Unknown tool: {tool_name}"
                 except Exception as e:

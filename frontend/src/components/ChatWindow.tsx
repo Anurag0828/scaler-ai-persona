@@ -38,7 +38,11 @@ export default function ChatWindow({ quickActions = [] }: ChatWindowProps) {
 
   const sendMessage = async (userMsg: string) => {
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    setMessages(prev => [
+      ...prev, 
+      { role: 'user', content: userMsg },
+      { role: 'assistant', content: '' }
+    ]);
     setIsLoading(true);
 
     try {
@@ -56,8 +60,6 @@ export default function ChatWindow({ quickActions = [] }: ChatWindowProps) {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantMsg = '';
-
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -89,10 +91,18 @@ export default function ChatWindow({ quickActions = [] }: ChatWindowProps) {
       }
     } catch (error) {
       console.error('Chat error:', error);
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: "I'm sorry, I'm having trouble connecting right now. Please try again later." 
-      }]);
+      setMessages(prev => {
+        const newMsgs = [...prev];
+        if (newMsgs[newMsgs.length - 1]?.role === 'assistant') {
+          newMsgs[newMsgs.length - 1].content = "I'm sorry, I'm having trouble connecting right now. Please try again later.";
+        } else {
+          newMsgs.push({
+            role: 'assistant',
+            content: "I'm sorry, I'm having trouble connecting right now. Please try again later."
+          });
+        }
+        return newMsgs;
+      });
     } finally {
       setIsLoading(false);
     }
@@ -173,54 +183,59 @@ export default function ChatWindow({ quickActions = [] }: ChatWindowProps) {
         style={{ background: '#FAFBFC' }}
       >
         <div className="space-y-4">
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} ${
-                idx === messages.length - 1 ? (msg.role === 'user' ? 'animate-slide-right' : 'animate-slide-left') : ''
-              }`}
-            >
-              {/* Assistant avatar */}
-              {msg.role === 'assistant' && (
-                <div
-                  className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-xs mr-2.5 mt-0.5"
-                  style={{
-                    background: 'linear-gradient(135deg, #1A73E8, #00C6FF)',
-                  }}
-                >
-                  AI
-                </div>
-              )}
-
+          {messages.map((msg, idx) => {
+            if (idx === messages.length - 1 && msg.role === 'assistant' && msg.content === '') {
+              return null;
+            }
+            return (
               <div
-                className="max-w-[78%] px-4 py-3"
-                style={
-                  msg.role === 'user'
-                    ? {
-                        background: '#1A73E8',
-                        color: '#FFFFFF',
-                        borderRadius: '16px 16px 4px 16px',
-                        boxShadow: '0 2px 8px rgba(26, 115, 232, 0.2)',
-                      }
-                    : {
-                        background: '#FFFFFF',
-                        color: '#1A1A2E',
-                        borderRadius: '16px 16px 16px 4px',
-                        border: '1px solid #E5E7EB',
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-                      }
-                }
+                key={idx}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} ${
+                  idx === messages.length - 1 ? (msg.role === 'user' ? 'animate-slide-right' : 'animate-slide-left') : ''
+                }`}
               >
-                {msg.role === 'user' ? (
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
-                ) : (
-                  <div className="chat-prose">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                {/* Assistant avatar */}
+                {msg.role === 'assistant' && (
+                  <div
+                    className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-xs mr-2.5 mt-0.5"
+                    style={{
+                      background: 'linear-gradient(135deg, #1A73E8, #00C6FF)',
+                    }}
+                  >
+                    AI
                   </div>
                 )}
+
+                <div
+                  className="max-w-[78%] px-4 py-3"
+                  style={
+                    msg.role === 'user'
+                      ? {
+                          background: '#1A73E8',
+                          color: '#FFFFFF',
+                          borderRadius: '16px 16px 4px 16px',
+                          boxShadow: '0 2px 8px rgba(26, 115, 232, 0.2)',
+                        }
+                      : {
+                          background: '#FFFFFF',
+                          color: '#1A1A2E',
+                          borderRadius: '16px 16px 16px 4px',
+                          border: '1px solid #E5E7EB',
+                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                        }
+                  }
+                >
+                  {msg.role === 'user' ? (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+                  ) : (
+                    <div className="chat-prose">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* Typing Indicator */}
           {isLoading && messages[messages.length - 1]?.content === '' && (

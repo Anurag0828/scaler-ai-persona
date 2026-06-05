@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Anurag Sajwan | AI Persona — Scaler AI Engineer Screening",
+  title: "Anurag Sajwan | Autonomous AI Persona",
   description: "Chat with Anurag Sajwan's autonomous AI persona. Powered by RAG, NVIDIA NIM, and Pinecone. Ask about his experience, skills, projects, or schedule an interview.",
 };
 

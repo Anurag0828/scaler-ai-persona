@@ -98,8 +98,9 @@ async def generate_chat_response(messages: list, stream: bool = False, max_token
         response = await client.chat.completions.create(
             model=config.NVIDIA_LLM_MODEL,
             messages=messages,
-            temperature=0.7,
-            max_tokens=max_tokens,
+            temperature=1.0,
+            top_p=1.0,
+            max_tokens=16384,
             stream=stream
         )
         return response

@@ -1,8 +1,6 @@
 # 🤖 Scaler AI Persona - Autonomous Interview Agent
 
-This repository contains the complete implementation of the **Scaler AI Persona**, an autonomous agent representing Anurag Sajwan. It handles real-time voice calls and text chats, grounds answers in real resume and GitHub data (RAG), and can autonomously book calendar appointments.
-
-This project was built for the Scaler AI Engineer Screening Assignment.
+This repository contains the complete implementation of an **Autonomous AI Persona** representing Anurag Sajwan. It handles real-time voice calls and text chats, grounds answers in real resume and GitHub data (RAG), and can autonomously book calendar appointments.
 
 ---
 
@@ -38,7 +36,7 @@ flowchart TD
     end
 
     subgraph Intelligence [Intelligence & Data Layer]
-        NIM_CHAT[🧠 NVIDIA NIM\n llama-3.1-70b-instruct]
+        NIM_CHAT[🧠 NVIDIA NIM\n moonshotai/kimi-k2.6]
         NIM_EMBED[🔢 NVIDIA NIM\n nv-embedqa-e5-v5]
         PINECONE[(🔍 Pinecone\n Vector Database)]
         CAL_API[📅 Cal.com\n API v2]
@@ -156,4 +154,4 @@ The system is designed to operate entirely within free tiers or at extremely low
 **Total Operating Cost:** ₹0 out-of-pocket.
 
 ---
-*Built by Anurag Sajwan for the Scaler AI Engineer assignment.*
+*Built by Anurag Sajwan.*

@@ -51,7 +51,7 @@ def generate_report():
 
 **Candidate**: Anurag Sajwan  
 **Date**: {now}  
-**System**: RAG-grounded Voice + Chat Agent (Scaler AI Engineer Screening)
+**System**: RAG-grounded Voice + Chat Agent
 
 ---
 
@@ -89,7 +89,7 @@ This report evaluates the performance of Anurag Sajwan's autonomous AI persona a
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
-| LLM (Chat) | NVIDIA NIM `llama-3.1-70b-instruct` | RAG-grounded chat responses |
+| LLM (Chat) | NVIDIA NIM `moonshotai/kimi-k2.6` | RAG-grounded chat responses |
 | LLM (Voice) | GPT-4o-mini (via Vapi) | Conversational voice responses |
 | Embeddings | NVIDIA NIM `nv-embedqa-e5-v5` | 1024-dim query/document embeddings |
 | Vector DB | Pinecone (Serverless) | Cosine similarity search |

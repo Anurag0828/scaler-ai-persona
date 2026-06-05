@@ -98,8 +98,8 @@ async def handle_vapi_webhook(payload: dict) -> dict:
                 result_text = await search_knowledge(query)
                 logger.info(f"[VAPI] search_knowledge returned {len(result_text)} chars")
                 # Keep it concise for voice
-                if len(result_text) > 1500:
-                    result_text = result_text[:1500] + "... [context truncated]"
+                if len(result_text) > 5000:
+                    result_text = result_text[:5000] + "... [context truncated]"
             else:
                 result_text = "No query provided."
                 logger.warning("[VAPI] search_knowledge called with empty query")

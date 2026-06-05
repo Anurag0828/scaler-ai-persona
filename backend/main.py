@@ -53,8 +53,10 @@ def verify_vapi_secret(request: Request):
     """Dependency to verify Vapi webhook secret"""
     if config.VAPI_WEBHOOK_SECRET:
         secret = request.headers.get("x-vapi-secret")
-        if secret != config.VAPI_WEBHOOK_SECRET:
-            logger.warning(f"[AUTH] Vapi secret mismatch. Expected: {config.VAPI_WEBHOOK_SECRET[:4]}..., Got: {secret}")
+        expected = config.VAPI_WEBHOOK_SECRET.strip()
+        provided = secret.strip() if secret else ""
+        if provided != expected:
+            logger.warning(f"[AUTH] Vapi secret mismatch. Expected: '{expected[:4]}...', Got: '{provided[:4]}...'")
             raise HTTPException(status_code=401, detail="Invalid webhook secret")
     return True
 

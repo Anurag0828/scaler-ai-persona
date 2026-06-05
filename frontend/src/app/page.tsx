@@ -107,21 +107,7 @@ export default function Home() {
             {techStack.map((tech) => (
               <div
                 key={tech.name}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium transition-all duration-200 cursor-default"
-                style={{
-                  background: '#FFFFFF',
-                  color: '#374151',
-                  border: '1px solid #E5E7EB',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#1A73E8';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(26, 115, 232, 0.12)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#E5E7EB';
-                  e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)';
-                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium border border-[#E5E7EB] bg-white text-[#374151] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-[#1A73E8] hover:shadow-[0_2px_8px_rgba(26,115,232,0.12)] transition-all duration-200 cursor-default"
               >
                 <span>{tech.icon}</span>
                 <span>{tech.name}</span>
